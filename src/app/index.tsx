@@ -1,17 +1,11 @@
-import { Text, View, StyleSheet } from "react-native";
+/**
+ * Root route — renders the Home POS screen.
+ * Kept intentionally thin; all UI composition lives in HomePosScreen.
+ */
+
+import "@/theme/unistyles";
+import { HomePosScreen } from "@/components/pos/HomePosScreen";
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text>Edit src/app/index.tsx to edit this screen.</Text>
-    </View>
-  );
+  return <HomePosScreen />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
