@@ -7,6 +7,7 @@
 
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native-unistyles";
 
 import { Chip } from "@/components/ui/Chip";
@@ -61,6 +62,8 @@ const ORDERS: OrderRowData[] = [
 /* ── Component ───────────────────────────────────────── */
 
 export function OrdersListScreen() {
+  const router = useRouter();
+
   return (
     <Screen>
       <View style={styles.screen}>
@@ -97,7 +100,11 @@ export function OrdersListScreen() {
             showsVerticalScrollIndicator={false}
           >
             {ORDERS.map((order) => (
-              <OrderRow key={order.id} order={order} />
+              <OrderRow
+                key={order.id}
+                order={order}
+                onPress={() => router.push("/orders/detail" as any)}
+              />
             ))}
           </ScrollView>
         </View>

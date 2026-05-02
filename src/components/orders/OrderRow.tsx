@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
 export interface OrderRowData {
@@ -21,11 +21,13 @@ export interface OrderRowData {
 
 interface OrderRowProps {
   order: OrderRowData;
+  onPress?: () => void;
 }
 
-export function OrderRow({ order }: OrderRowProps) {
+export function OrderRow({ order, onPress }: OrderRowProps) {
+  const Wrapper = onPress ? Pressable : View;
   return (
-    <View style={styles.row}>
+    <Wrapper style={styles.row} onPress={onPress}>
       <View style={styles.inner}>
         <View style={styles.content}>
           <View
@@ -54,7 +56,7 @@ export function OrderRow({ order }: OrderRowProps) {
 
         <Text style={styles.total}>{order.total}</Text>
       </View>
-    </View>
+    </Wrapper>
   );
 }
 
