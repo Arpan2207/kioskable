@@ -1,53 +1,76 @@
 /**
  * A single menu-item tile shown in the responsive grid on the left pane.
- * Displays the item name, a short description, price, and an "Add item" button.
+ * Pressing the card selects the item (driving the bottom editor panel);
+ * pressing "Add item" adds it straight to the cart.
  *
  * Card height adapts via breakpoints instead of using a single fixed value,
  * so the grid stays readable from small tablets to large landscape screens.
  */
 
 import React from "react";
-import { View, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Card } from "@/components/ui/Card";
 
 interface MenuItemCardProps {
   name: string;
-  description: string;
   price: string;
+  /** Whether this card is the currently selected item. */
+  selected?: boolean;
+  /** Called when the card body is pressed (selects the item). */
+  onSelect?: () => void;
+  /** Called when the "Add item" button is pressed (adds to cart). */
+  onAdd?: () => void;
 }
 
-export function MenuItemCard({ name, description, price }: MenuItemCardProps) {
+/**
+ * Presentational menu tile with selection + add handlers.
+ * @param props Item name, formatted price, selection state, and callbacks.
+ */
+export function MenuItemCard({
+  name,
+  price,
+  selected = false,
+  onSelect,
+  onAdd,
+}: MenuItemCardProps) {
   return (
-    <Card style={styles.card}>
-      <Text style={styles.name} numberOfLines={1}>
-        {name}
-      </Text>
-      <Text style={styles.description} numberOfLines={2}>
-        {description}
-      </Text>
+    <Pressable style={styles.pressable} onPress={onSelect}>
+      <Card style={[styles.card, selected && styles.cardSelected]}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
 
-      <View style={styles.footer}>
-        <Text style={styles.price}>{price}</Text>
-        <View style={styles.addButton}>
-          <Text style={styles.addLabel}>Add item</Text>
+        <View style={styles.footer}>
+          <Text style={styles.price}>{price}</Text>
+          <Pressable style={styles.addButton} onPress={onAdd}>
+            <Text style={styles.addLabel}>Add item</Text>
+          </Pressable>
         </View>
-      </View>
-    </Card>
+      </Card>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  pressable: {
+    flex: 1,
+    minWidth: 0,
+  },
   card: {
     flex: 1,
     minWidth: 0,
     minHeight: {
-      xs: 120,
-      sm: 130,
-      md: 140,
-      lg: 148,
+      xs: 80,
+      sm: 88,
+      md: 96,
+      lg: 100,
     },
     justifyContent: "space-between",
+  },
+  cardSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surfaceWarm,
   },
   name: {
     fontFamily: theme.typography.fontFamily.body,
@@ -57,12 +80,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     lineHeight: 20,
     color: theme.colors.textPrimary,
-  },
-  description: {
-    fontFamily: theme.typography.fontFamily.body,
-    fontSize: theme.typography.size.sm,
-    lineHeight: 17,
-    color: theme.colors.textSecondary,
   },
   footer: {
     flexDirection: "row",

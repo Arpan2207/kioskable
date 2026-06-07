@@ -1,38 +1,55 @@
 /**
  * Horizontal scrollable row of category chips at the top of the left pane.
- * The first chip ("Popular") is active by default; the rest are inactive.
- * A search bar placeholder fills the remaining space on the right.
+ * Now a controlled component: the parent owns the selected category and the
+ * search text, and this component reports changes back through callbacks.
  *
  * The three-dot icon on the left opens a small dropdown with navigation
  * options (e.g. Orders screen).
  */
 
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native-unistyles";
 
 import { Chip } from "@/components/ui/Chip";
+import type { MenuCategory } from "@/types/pos";
 
-const CATEGORIES = [
-  "Popular",
-  "Burgers",
-  "Bowls",
-  "Sides",
-  "Drinks",
-  "Desserts",
-] as const;
-
-const MENU_ITEMS = [
+/** Navigation targets available from the three-dot menu. */
+const NAV_ITEMS = [
   { label: "Orders", route: "/orders" as const },
   { label: "Admin", route: "/admin" as const },
   { label: "Settings", route: "/settings" as const },
 ];
 
-export function CategoryBar() {
+interface CategoryBarProps {
+  /** Categories to render as selectable chips. */
+  categories: MenuCategory[];
+  /** Id of the currently active category. */
+  selectedCategoryId: string;
+  /** Called when a category chip is pressed. */
+  onSelectCategory: (categoryId: string) => void;
+  /** Current search query value. */
+  searchText: string;
+  /** Called as the search query changes. */
+  onSearchChange: (text: string) => void;
+}
+
+/**
+ * Controlled category bar with category chips and a live search field.
+ * @param props Category list, selection, search text, and change handlers.
+ */
+export function CategoryBar({
+  categories,
+  selectedCategoryId,
+  onSelectCategory,
+  searchText,
+  onSearchChange,
+}: CategoryBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
+  /** Close the dropdown and navigate to the chosen route. */
   function handleMenuItemPress(route: string | undefined) {
     setMenuOpen(false);
     if (route) {
@@ -54,20 +71,13 @@ export function CategoryBar() {
         {/* Dropdown */}
         {menuOpen && (
           <View style={styles.dropdown}>
-            {MENU_ITEMS.map((item) => (
+            {NAV_ITEMS.map((item) => (
               <Pressable
                 key={item.label}
                 style={styles.dropdownItem}
                 onPress={() => handleMenuItemPress(item.route)}
               >
-                <Text
-                  style={[
-                    styles.dropdownLabel,
-                    !item.route && styles.dropdownDisabled,
-                  ]}
-                >
-                  {item.label}
-                </Text>
+                <Text style={styles.dropdownLabel}>{item.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -79,15 +89,21 @@ export function CategoryBar() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pills}
       >
-        {CATEGORIES.map((cat) => (
-          <Chip key={cat} label={cat} active={cat === "Popular"} />
+        {categories.map((cat) => (
+          <Pressable key={cat.id} onPress={() => onSelectCategory(cat.id)}>
+            <Chip label={cat.label} active={cat.id === selectedCategoryId} />
+          </Pressable>
         ))}
       </ScrollView>
 
       <View style={styles.searchBar}>
-        <Text style={styles.searchPlaceholder}>
-          Search menu items, combos, drinks...
-        </Text>
+        <TextInput
+          style={styles.searchInput}
+          value={searchText}
+          onChangeText={onSearchChange}
+          placeholder="Search menu items, combos, drinks..."
+          placeholderTextColor={styles.searchPlaceholder.color}
+        />
       </View>
     </View>
   );
@@ -149,9 +165,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.typography.size.base,
     color: theme.colors.textPrimary,
   },
-  dropdownDisabled: {
-    color: theme.colors.textTertiary,
-  },
 
   searchBar: {
     flex: 1,
@@ -161,9 +174,13 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: 16,
     justifyContent: "center",
   },
-  searchPlaceholder: {
+  searchInput: {
     fontFamily: theme.typography.fontFamily.body,
     fontSize: theme.typography.size.md,
+    color: theme.colors.textPrimary,
+    padding: 0,
+  },
+  searchPlaceholder: {
     color: theme.colors.textTertiary,
   },
 }));

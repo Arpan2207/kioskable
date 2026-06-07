@@ -3,11 +3,10 @@
  * Layout: two-pane split — left pane (categories, menu grid, editor area)
  * and right pane (persistent cart sidebar).
  *
- * The column count and bottom-editor orientation adapt to the available
- * width via Unistyles breakpoints + useWindowDimensions for structural
- * decisions that affect the JSX tree.
- *
- * All data is static for this initial UI-only pass.
+ * This screen owns the interactive POS state via usePosState() and passes
+ * state + handlers down to the presentational child components. The column
+ * count and bottom-editor orientation adapt to the available width via
+ * useWindowDimensions for structural decisions that affect the JSX tree.
  */
 
 import React from "react";
@@ -16,29 +15,15 @@ import { StyleSheet } from "react-native-unistyles";
 
 import { Screen } from "@/components/ui/Screen";
 import { HStack } from "@/components/ui/Stack";
+import { CATEGORIES, formatCurrency } from "@/lib/mockData";
+import { usePosState } from "@/hooks/usePosState";
+import type { MenuItem } from "@/types/pos";
 import { CartPanel } from "./CartPanel";
 import { CategoryBar } from "./CategoryBar";
 import { MenuItemCard } from "./MenuItemCard";
 import { QuickTools } from "./QuickTools";
 import { SelectedItemPanel } from "./SelectedItemPanel";
 import { UpsellGrid } from "./UpsellGrid";
-
-/* ── Static menu data (matched to Figma) ─────────────── */
-
-interface MenuItem {
-  name: string;
-  description: string;
-  price: string;
-}
-
-const MENU_ITEMS: MenuItem[] = [
-  { name: "Smash Burger", description: "Double patty, cheddar, pickles, house sauce.", price: "$13.50" },
-  { name: "Hot Honey Chicken", description: "Crispy chicken, slaw, chili honey glaze.", price: "$14.25" },
-  { name: "Green Bowl", description: "Rice, avocado, greens, roasted vegetables.", price: "$11.75" },
-  { name: "Classic Fries", description: "Crispy fries with sea salt and herb seasoning.", price: "$6.50" },
-  { name: "Sparkling Lime", description: "Fresh citrus soda with mint and crushed ice.", price: "$4.25" },
-  { name: "Chicken Wrap", description: "Grilled chicken, greens, and aioli in a soft wrap.", price: "$11.90" },
-];
 
 /** Split a flat array into rows of `cols` items each. */
 function chunkArray<T>(arr: T[], cols: number): T[][] {
@@ -74,14 +59,23 @@ function useEditorStacked(): boolean {
 export function HomePosScreen() {
   const columns = useMenuColumns();
   const editorStacked = useEditorStacked();
-  const menuRows = chunkArray(MENU_ITEMS, columns);
+  const pos = usePosState();
+
+  // Build responsive grid rows from the filtered (category + search) items.
+  const menuRows = chunkArray(pos.filteredItems, columns);
 
   return (
     <Screen>
       <View style={styles.root}>
         {/* ── Left pane ── */}
         <View style={styles.leftPane}>
-          <CategoryBar />
+          <CategoryBar
+            categories={CATEGORIES}
+            selectedCategoryId={pos.selectedCategoryId}
+            onSelectCategory={pos.selectCategory}
+            searchText={pos.searchText}
+            onSearchChange={pos.setSearchText}
+          />
           <QuickTools />
 
           {/* Menu grid — scrollable, grows to fill remaining space */}
@@ -92,12 +86,14 @@ export function HomePosScreen() {
           >
             {menuRows.map((row, ri) => (
               <HStack key={ri} gap={12}>
-                {row.map((item) => (
+                {row.map((item: MenuItem) => (
                   <MenuItemCard
-                    key={item.name}
+                    key={item.id}
                     name={item.name}
-                    description={item.description}
-                    price={item.price}
+                    price={formatCurrency(item.price)}
+                    selected={pos.selectedItem?.id === item.id}
+                    onSelect={() => pos.selectItem(item.id)}
+                    onAdd={() => pos.addItemToCart(item)}
                   />
                 ))}
                 {/* Invisible spacers keep cards equally sized when a row is partial */}
@@ -116,13 +112,28 @@ export function HomePosScreen() {
               editorStacked && styles.bottomEditorStacked,
             ]}
           >
-            <SelectedItemPanel />
+            <SelectedItemPanel
+              item={pos.selectedItem}
+              selectedModifierIds={pos.selectedModifierIds}
+              onToggleModifier={pos.toggleModifier}
+              onAddToCart={pos.addSelectedToCart}
+            />
             <UpsellGrid />
           </View>
         </View>
 
         {/* ── Right pane (cart) ── */}
-        <CartPanel />
+        <CartPanel
+          cart={pos.cart}
+          summary={pos.cartSummary}
+          orderType={pos.orderType}
+          onSelectOrderType={pos.setOrderType}
+          onClear={pos.clearCart}
+          onIncrement={pos.incrementLine}
+          onDecrement={pos.decrementLine}
+          totals={pos.totals}
+          onPlaceOrder={pos.placeOrder}
+        />
       </View>
     </Screen>
   );

@@ -1,58 +1,73 @@
 /**
  * Dark sidebar on the right side of the POS screen.
- * Shows: header ("Current cart"), order-type chips, cart line items,
- * action buttons, order totals, and the primary "Simulate place order" CTA.
+ * Driven by local POS state: it renders live cart lines, order-type selection,
+ * quantity controls, computed totals, and a simulated place-order action.
  *
  * Width, padding, and internal spacing adapt to breakpoints so the panel
  * stays usable from ~600dp tablets up to large landscape screens.
- *
- * All data is static / mock for the initial UI-only build.
  */
 
 import React from "react";
-import { View, Text, ScrollView } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
+import { formatCurrency } from "@/lib/mockData";
+import type { CartLine, OrderTotals, OrderType } from "@/types/pos";
 
-/* ── Static mock data ────────────────────────────────── */
+/** Static, cosmetic secondary actions (no behavior in this phase). */
+const ACTIONS = ["Send to kitchen", "Hold order", "Add note"] as const;
+const ORDER_TYPES: OrderType[] = ["Dine-in", "Pickup", "Delivery"];
 
-interface CartItem {
-  name: string;
-  note: string;
-  qty: number;
+interface CartPanelProps {
+  cart: CartLine[];
+  /** Header summary, e.g. "3 items · dine-in". */
+  summary: string;
+  orderType: OrderType;
+  onSelectOrderType: (type: OrderType) => void;
+  onClear: () => void;
+  onIncrement: (lineId: string) => void;
+  onDecrement: (lineId: string) => void;
+  totals: OrderTotals;
+  onPlaceOrder: () => void;
 }
 
-const CART_ITEMS: CartItem[] = [
-  { name: "Smash Burger", note: "Cheddar, fries upgrade", qty: 1 },
-  { name: "Green Bowl", note: "No feta, extra avocado", qty: 2 },
-  { name: "Sparkling Citrus", note: "Large size", qty: 1 },
-];
+/**
+ * Cart sidebar component.
+ * @param props Live cart lines, order type, totals, and the mutation handlers.
+ */
+export function CartPanel({
+  cart,
+  summary,
+  orderType,
+  onSelectOrderType,
+  onClear,
+  onIncrement,
+  onDecrement,
+  totals,
+  onPlaceOrder,
+}: CartPanelProps) {
+  const isEmpty = cart.length === 0;
 
-const ORDER_TYPES = ["Dine-in", "Pickup", "Delivery"] as const;
-
-const ACTIONS = ["Send to kitchen", "Hold order", "Add note"] as const;
-
-/* ── Component ───────────────────────────────────────── */
-
-export function CartPanel() {
   return (
     <View style={styles.sidebar}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Current cart</Text>
-          <Text style={styles.headerMeta}>3 items · dine-in · table 14</Text>
+          <Text style={styles.headerMeta}>{summary}</Text>
         </View>
-        <View style={styles.clearBtn}>
+        <Pressable style={styles.clearBtn} onPress={onClear}>
           <Text style={styles.clearLabel}>Clear</Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Order type chips — wraps when the sidebar is narrow */}
       <View style={styles.orderTypes}>
         {ORDER_TYPES.map((t) => (
-          <Chip key={t} label={t} active={t === "Dine-in"} dark={t !== "Dine-in"} />
+          <Pressable key={t} onPress={() => onSelectOrderType(t)}>
+            <Chip label={t} active={t === orderType} dark={t !== orderType} />
+          </Pressable>
         ))}
       </View>
 
@@ -62,30 +77,44 @@ export function CartPanel() {
         contentContainerStyle={styles.itemsContent}
         showsVerticalScrollIndicator={false}
       >
-        {CART_ITEMS.map((item) => (
-          <View key={item.name} style={styles.cartItem}>
-            <View style={styles.cartItemInfo}>
-              <Text style={styles.cartItemName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.cartItemNote} numberOfLines={1}>
-                {item.note}
-              </Text>
-            </View>
-            <View style={styles.qtyControls}>
-              <View style={styles.qtyBtn}>
-                <Text style={styles.qtySymbol}>-</Text>
-              </View>
-              <Text style={styles.qtyValue}>{item.qty}</Text>
-              <View style={styles.qtyBtn}>
-                <Text style={styles.qtySymbol}>+</Text>
-              </View>
-            </View>
+        {isEmpty ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              Cart is empty. Add items from the menu to get started.
+            </Text>
           </View>
-        ))}
+        ) : (
+          cart.map((line) => (
+            <View key={line.id} style={styles.cartItem}>
+              <View style={styles.cartItemInfo}>
+                <Text style={styles.cartItemName} numberOfLines={1}>
+                  {line.name}
+                </Text>
+                <Text style={styles.cartItemNote} numberOfLines={1}>
+                  {line.note} · {formatCurrency(line.unitPrice)}
+                </Text>
+              </View>
+              <View style={styles.qtyControls}>
+                <Pressable
+                  style={styles.qtyBtn}
+                  onPress={() => onDecrement(line.id)}
+                >
+                  <Text style={styles.qtySymbol}>-</Text>
+                </Pressable>
+                <Text style={styles.qtyValue}>{line.qty}</Text>
+                <Pressable
+                  style={styles.qtyBtn}
+                  onPress={() => onIncrement(line.id)}
+                >
+                  <Text style={styles.qtySymbol}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
-      {/* Action buttons */}
+      {/* Action buttons (cosmetic) */}
       <View style={styles.actions}>
         {ACTIONS.map((a) => (
           <Button key={a} label={a} variant="ghost" style={styles.actionBtn} />
@@ -94,11 +123,16 @@ export function CartPanel() {
 
       {/* Totals */}
       <View style={styles.totals}>
-        <TotalRow label="Subtotal" value="$40.00" />
-        <TotalRow label="Tax" value="$3.60" />
-        <TotalRow label="Total" value="$43.60" />
+        <TotalRow label="Subtotal" value={formatCurrency(totals.subtotal)} />
+        <TotalRow label="Tax" value={formatCurrency(totals.tax)} />
+        <TotalRow label="Total" value={formatCurrency(totals.total)} />
 
-        <Button label="Simulate place order" variant="primary" style={styles.placeBtn} />
+        <Button
+          label="Simulate place order"
+          variant="primary"
+          style={styles.placeBtn}
+          onPress={onPlaceOrder}
+        />
       </View>
     </View>
   );
@@ -106,6 +140,10 @@ export function CartPanel() {
 
 /* ── Small helper for summary rows ───────────────────── */
 
+/**
+ * A single label/value row in the totals section.
+ * @param props The label text and its formatted value.
+ */
 function TotalRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.totalRow}>
@@ -202,6 +240,18 @@ const styles = StyleSheet.create((theme) => ({
       xs: 8,
       md: 10,
     },
+  },
+  emptyState: {
+    paddingVertical: 24,
+    paddingHorizontal: 8,
+  },
+  emptyText: {
+    fontFamily: theme.typography.fontFamily.body,
+    fontSize: theme.typography.size.sm,
+    color: theme.colors.textOnPrimary,
+    opacity: 0.55,
+    textAlign: "center",
+    lineHeight: 18,
   },
   cartItem: {
     backgroundColor: theme.colors.sidebarCard,

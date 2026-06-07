@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { View, ViewStyle } from "react-native";
+import { StyleProp, View, ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
 type CardVariant = "default" | "warm" | "upsellHighlight";
@@ -13,7 +13,7 @@ type CardVariant = "default" | "warm" | "upsellHighlight";
 interface CardProps {
   children: React.ReactNode;
   variant?: CardVariant;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Card({ children, variant = "default", style }: CardProps) {
